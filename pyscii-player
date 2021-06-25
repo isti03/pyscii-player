@@ -1,0 +1,116 @@
+#!/usr/bin/python3
+
+from sys import argv, exit
+import curses
+
+if len(argv) < 2:
+    exit(f'Usage: {argv[0]} <filename>')
+
+datafile = argv[1]
+
+
+class framecollection:
+    def __init__(self, framelist, rows, fps=8):
+        self.frames = framelist
+        self.frameindex = -1
+        self.rows = rows
+        self.fps = fps
+
+    def next(self):
+        self.frameindex = (self.frameindex + 1) % len(self.frames)
+        return self.frames[self.frameindex]
+
+    def prev(self):
+        self.frameindex = (self.frameindex - 1) % len(self.frames)
+        return self.frames[self.frameindex]
+
+
+def extract_frames(filename):
+    try:
+        with open(filename) as f:
+            metadata = {"fps": 8}
+
+            while '=' in (line := f.readline()):
+                key, value = line.split('=')
+                metadata[key.strip()] = int(value)
+
+            if 'rows' not in metadata.keys():
+                exit('Frame height not specified in the file')
+
+            art = f.readlines()
+        frames = []
+        for i in range(0, len(art), metadata['rows']):
+            frames.append(''.join(art[i:i+metadata['rows']]))
+        return framecollection(frames, metadata['rows'], metadata['fps'])
+
+    except FileNotFoundError:
+        exit(f'{datafile}: Non-existent file')
+
+
+def main(stdscr):
+    curses.noecho()
+    curses.curs_set(0)
+
+    frames = extract_frames(datafile)
+
+    statusbar = curses.newwin(1, curses.COLS-6, 1, 3)
+
+    canvas = curses.newwin(curses.LINES-8, curses.COLS-6, 3, 3)
+    canvas.nodelay(True)
+    canvas.keypad(True)
+
+    canvas.addstr(0, 0, frames.next())
+
+    paused = False
+
+    while True:
+        if not paused:
+            canvas.erase()
+            canvas.addstr(0, 0, frames.next())
+
+        keycode = canvas.getch()
+
+        # <Q> quit
+        if keycode == 113:
+            break
+        # <R> reload
+        elif keycode == 114:
+            frames = extract_frames(datafile)
+            canvas.clear()
+            canvas.addstr(0, 0, frames.next())
+        # <SPACE> play/pause
+        elif keycode == 32:
+            paused = not paused
+        # <LEFT ARROW> previous frame
+        elif keycode == 260:
+            canvas.erase()
+            canvas.addstr(0, 0, frames.prev())
+        # <RIGHT ARROW> next frame
+        elif keycode == 261:
+            canvas.erase()
+            canvas.addstr(0, 0, frames.next())
+        # <UP ARROW> increment fps
+        elif keycode == 259:
+            frames.fps = min(frames.fps + 1, 30)
+        # <DOWN ARROW> decrement fps
+        elif keycode == 258:
+            frames.fps = max(frames.fps - 1, 1)
+
+        canvas.timeout(int(1000/frames.fps))
+
+        canvas.refresh()
+
+        statusbar.erase()
+        statusbar.addstr(
+            0, 0,
+            '{} {:2d} fps, frame: {:3d}/{:d}'.format(
+                datafile,
+                frames.fps,
+                frames.frameindex,
+                len(frames.frames)
+            )
+        )
+        statusbar.refresh()
+
+
+curses.wrapper(main)
