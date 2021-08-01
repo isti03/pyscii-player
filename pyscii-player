@@ -10,6 +10,7 @@ datafile = argv[1]
 
 
 class FrameCollection:
+    """Holds frames of an animation with the necessary metadata"""
     def __init__(self, framelist, rows, fps=8):
         self.frames = framelist
         self.frameindex = -1
@@ -25,7 +26,8 @@ class FrameCollection:
         return self.frames[self.frameindex]
 
 
-def extract_frames(filename):
+def extract_frames(filename: str) -> FrameCollection:
+    """Extract frames from a properly formatted text file"""
     try:
         with open(filename) as f:
             metadata = {"fps": 8}
