@@ -47,7 +47,9 @@ def extract_frames(filename):
         exit(f'{datafile}: Non-existent file')
 
 
+@curses.wrapper
 def main(stdscr):
+    """The main function in a curses wrapper"""
     curses.noecho()
     curses.curs_set(0)
 
@@ -112,5 +114,3 @@ def main(stdscr):
         )
         statusbar.refresh()
 
-
-curses.wrapper(main)
