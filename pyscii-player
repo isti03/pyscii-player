@@ -9,7 +9,7 @@ if len(argv) < 2:
 datafile = argv[1]
 
 
-class framecollection:
+class FrameCollection:
     def __init__(self, framelist, rows, fps=8):
         self.frames = framelist
         self.frameindex = -1
@@ -41,7 +41,7 @@ def extract_frames(filename):
         frames = []
         for i in range(0, len(art), metadata['rows']):
             frames.append(''.join(art[i:i+metadata['rows']]))
-        return framecollection(frames, metadata['rows'], metadata['fps'])
+        return FrameCollection(frames, metadata['rows'], metadata['fps'])
 
     except FileNotFoundError:
         exit(f'{datafile}: Non-existent file')
