@@ -3,6 +3,8 @@
 from sys import argv, exit
 import curses
 
+from PIL import Image, ImageDraw, ImageFont
+
 if len(argv) < 2:
     exit(f'Usage: {argv[0]} <filename>')
 
@@ -11,10 +13,11 @@ datafile = argv[1]
 
 class FrameCollection:
     """Holds frames of an animation with the necessary metadata"""
-    def __init__(self, framelist, rows, fps=8):
+    def __init__(self, framelist, rows, columns, fps=8):
         self.frames = framelist
         self.frameindex = -1
         self.rows = rows
+        self.columns = columns
         self.fps = fps
 
     def next(self):
@@ -24,6 +27,9 @@ class FrameCollection:
     def prev(self):
         self.frameindex = (self.frameindex - 1) % len(self.frames)
         return self.frames[self.frameindex]
+
+    def list(self):
+        return self.frames
 
 
 def extract_frames(filename: str) -> FrameCollection:
@@ -40,14 +46,34 @@ def extract_frames(filename: str) -> FrameCollection:
                 exit('Frame height not specified in the file')
 
             art = f.readlines()
+
+        metadata['columns'] = len(max(art, key=len))
+
         frames = []
         for i in range(0, len(art), metadata['rows']):
             frames.append(''.join(art[i:i+metadata['rows']]))
-        return FrameCollection(frames, metadata['rows'], metadata['fps'])
+        return FrameCollection(frames, metadata['rows'], metadata['columns'], metadata['fps'])
 
     except FileNotFoundError:
         exit(f'{datafile}: Non-existent file')
 
+
+def export_animation_to_gif(framecollection):
+    """Saves the frame collection to ./export.gif"""
+    font = ImageFont.truetype("SourceCodePro-Regular.otf", size=24)
+    gifframes = []
+    for frame in framecollection.list():
+        cx, cy = font.getsize('n') # char width and height
+        img = Image.new("RGBA", (cx*framecollection.columns+10, cy*framecollection.rows+10))
+        draw = ImageDraw.Draw(img)
+        draw.multiline_text((5,5), frame, font=font)
+        gifframes.append(img)
+
+    gifframes[0].save(
+            'export.gif', format="GIF",
+            append_images = gifframes[1:], save_all=True,
+            duration = 1000/framecollection.fps, loop = 0
+    )
 
 @curses.wrapper
 def main(stdscr):
@@ -99,6 +125,9 @@ def main(stdscr):
         # <DOWN ARROW> decrement fps
         elif keycode == 258:
             frames.fps = max(frames.fps - 1, 1)
+        # <E> save animation as a gif
+        elif keycode == 101:
+            export_animation_to_gif(frames)
 
         canvas.timeout(int(1000/frames.fps))
 
